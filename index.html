@@ -1,0 +1,719 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sealed League — Technical Documentation</title>
+<meta name="description" content="A verifiable track-record protocol for AI forecasting agents, built on Solana. Every prediction is committed on-chain before the event, settled by Merkle proof, and staked with real capital." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;450;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%23E7B24C'/%3E%3Cpath d='M16 8l6 3.5v5c0 4-2.6 6.2-6 7.5-3.4-1.3-6-3.5-6-7.5v-5L16 8z' fill='%23080B14'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --ink:#070A12;
+    --bg:#0A0F1C;
+    --bg-2:#0C1220;
+    --surface:#111A2B;
+    --surface-2:#0E1626;
+    --line:#1E293F;
+    --line-2:#2A3A5A;
+    --text:#E9ECF4;
+    --text-dim:#9BA5BD;
+    --text-faint:#697389;
+    --gold:#E7B24C;
+    --gold-2:#F2C86A;
+    --gold-soft:rgba(231,178,76,.12);
+    --gold-line:rgba(231,178,76,.35);
+    --cyan:#5AD1C3;
+    --cyan-soft:rgba(90,209,195,.12);
+    --green:#5DC98A;
+    --red:#E57C81;
+    --sans:'Inter',system-ui,sans-serif;
+    --disp:'Bricolage Grotesque',var(--sans);
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --nav-w:288px;
+    --maxw:820px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth;scroll-padding-top:88px;-webkit-text-size-adjust:100%}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:var(--sans);font-size:16px;line-height:1.65;font-weight:400;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+    letter-spacing:-0.003em;
+  }
+  /* ambient ink grid + seal glow */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:
+      radial-gradient(900px 500px at 82% -8%, rgba(231,178,76,.10), transparent 60%),
+      radial-gradient(700px 600px at 0% 100%, rgba(90,209,195,.06), transparent 60%),
+      linear-gradient(180deg,#0A0F1C 0%, #080C16 100%);
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:52px 52px;
+    -webkit-mask-image:radial-gradient(1200px 700px at 70% 0%,#000 0%,transparent 75%);
+    mask-image:radial-gradient(1200px 700px at 70% 0%,#000 0%,transparent 75%);
+  }
+  a{color:inherit;text-decoration:none}
+  ::selection{background:var(--gold-soft);color:var(--gold-2)}
+ 
+  /* ---------- Top bar ---------- */
+  .topbar{
+    position:sticky;top:0;z-index:50;
+    display:flex;align-items:center;gap:14px;
+    height:60px;padding:0 22px;
+    background:rgba(9,13,25,.72);backdrop-filter:blur(14px) saturate(1.3);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:center;gap:11px;font-family:var(--disp);font-weight:700;font-size:16.5px;letter-spacing:-0.02em}
+  .seal-mark{width:26px;height:26px;flex:none;filter:drop-shadow(0 2px 6px rgba(231,178,76,.4))}
+  .brand small{font-family:var(--mono);font-weight:500;font-size:10.5px;color:var(--gold);letter-spacing:.14em;text-transform:uppercase;border:1px solid var(--gold-line);border-radius:5px;padding:2px 6px;margin-left:2px}
+  .topbar-spacer{flex:1}
+  .pid{display:none;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--text-dim);
+    background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;transition:border-color .2s}
+  .pid:hover{border-color:var(--gold-line);color:var(--text)}
+  .pid b{color:var(--cyan);font-weight:500}
+  .pid .copyhint{color:var(--text-faint);font-size:11px}
+  @media(min-width:1180px){.pid{display:flex}}
+  .menu-btn{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);cursor:pointer}
+  @media(min-width:960px){.menu-btn{display:none}}
+ 
+  /* ---------- Shell ---------- */
+  .shell{display:flex;max-width:1400px;margin:0 auto}
+ 
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:var(--nav-w);flex:none;
+    position:sticky;top:60px;align-self:flex-start;
+    height:calc(100vh - 60px);overflow-y:auto;
+    padding:30px 14px 60px 26px;
+    border-right:1px solid var(--line);
+    scrollbar-width:thin;scrollbar-color:var(--line-2) transparent;
+  }
+  .sidebar::-webkit-scrollbar{width:8px}
+  .sidebar::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:4px}
+  .nav-eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);padding:0 12px;margin:0 0 12px}
+  .nav a{
+    display:flex;align-items:baseline;gap:11px;
+    padding:8px 12px;border-radius:9px;
+    color:var(--text-dim);font-size:14px;line-height:1.35;font-weight:450;
+    transition:background .15s,color .15s;position:relative;
+  }
+  .nav a .num{font-family:var(--mono);font-size:11.5px;color:var(--text-faint);min-width:16px;font-weight:500;transition:color .15s}
+  .nav a:hover{background:var(--surface);color:var(--text)}
+  .nav a.active{background:var(--gold-soft);color:var(--gold-2)}
+  .nav a.active .num{color:var(--gold)}
+  .nav a.active::before{content:"";position:absolute;left:-26px;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--gold);border-radius:0 3px 3px 0}
+  @media(max-width:959px){
+    .sidebar{position:fixed;top:60px;left:0;z-index:45;background:var(--bg-2);
+      transform:translateX(-104%);transition:transform .28s cubic-bezier(.4,0,.2,1);box-shadow:24px 0 60px rgba(0,0,0,.5)}
+    .sidebar.open{transform:translateX(0)}
+    .scrim{position:fixed;inset:60px 0 0;background:rgba(4,7,14,.6);backdrop-filter:blur(2px);z-index:44;opacity:0;visibility:hidden;transition:.25s}
+    .scrim.show{opacity:1;visibility:visible}
+  }
+ 
+  /* ---------- Main ---------- */
+  main{flex:1;min-width:0;padding:0 clamp(20px,5vw,64px) 120px}
+  .wrap{max-width:var(--maxw);margin:0 auto}
+ 
+  /* ---------- Hero ---------- */
+  .hero{padding:clamp(48px,7vw,88px) 0 clamp(40px,5vw,56px)}
+  .hero .kicker{display:inline-flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold-line);border-radius:100px;padding:6px 13px;margin-bottom:26px}
+  .hero .kicker .dot{width:6px;height:6px;border-radius:50%;background:var(--gold);box-shadow:0 0 12px var(--gold)}
+  .hero h1{font-family:var(--disp);font-weight:700;font-size:clamp(38px,6.4vw,66px);line-height:1.02;letter-spacing:-0.035em;margin:0 0 22px}
+  .hero h1 em{font-style:normal;color:var(--gold);position:relative;white-space:nowrap}
+  .hero h1 em::after{content:"";position:absolute;left:0;right:0;bottom:.06em;height:.5em;background:var(--gold-soft);z-index:-1;border-radius:3px}
+  .hero .lede{font-size:clamp(17px,2.2vw,20px);line-height:1.6;color:var(--text-dim);max-width:640px;margin:0 0 34px}
+  .hero .lede strong{color:var(--text);font-weight:500}
+  .hero-meta{display:flex;flex-wrap:wrap;gap:10px}
+  .chip{display:inline-flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;color:var(--text-dim);background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 13px}
+  .chip b{color:var(--text);font-weight:500}
+  .chip .lbl{color:var(--text-faint);text-transform:uppercase;letter-spacing:.1em;font-size:10px}
+ 
+  /* ---------- Seal panel (signature) ---------- */
+  .seal-panel{
+    margin-top:44px;border:1px solid var(--line);border-radius:18px;overflow:hidden;
+    background:linear-gradient(180deg,var(--surface) 0%,var(--surface-2) 100%);
+    box-shadow:0 30px 80px -40px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .seal-head{display:flex;align-items:center;gap:10px;padding:13px 18px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--text-faint)}
+  .seal-head .lights{display:flex;gap:6px}.seal-head .lights i{width:10px;height:10px;border-radius:50%;background:var(--line-2)}
+  .seal-body{padding:22px 20px 24px;display:grid;grid-template-columns:1fr;gap:14px}
+  .preimage{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .pre-field{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .pre-field .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-faint);margin-bottom:4px}
+  .pre-field .v{font-family:var(--mono);font-size:12.5px;color:var(--cyan);word-break:break-all}
+  .seal-arrow{display:flex;align-items:center;justify-content:center;gap:10px;color:var(--text-faint);font-family:var(--mono);font-size:11px;letter-spacing:.1em}
+  .seal-arrow .ln{height:1px;flex:1;background:linear-gradient(90deg,transparent,var(--line-2),transparent)}
+  .hashline{display:flex;align-items:center;gap:12px;background:var(--ink);border:1px solid var(--gold-line);border-radius:12px;padding:15px 16px;position:relative;overflow:hidden}
+  .hashline::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,var(--gold-soft),transparent);opacity:.5}
+  .lock{width:34px;height:34px;flex:none;position:relative;z-index:1}
+  .hash-txt{font-family:var(--mono);font-size:13px;letter-spacing:.02em;color:var(--gold-2);word-break:break-all;line-height:1.5;position:relative;z-index:1;flex:1}
+  .stamp{position:relative;z-index:1;font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.18em;color:var(--gold);border:1.5px solid var(--gold);border-radius:6px;padding:5px 9px;transform:rotate(-6deg);opacity:0;transition:opacity .5s .2s,transform .5s .2s;white-space:nowrap}
+  .stamp.on{opacity:1;transform:rotate(-6deg) scale(1)}
+  .lifecycle{display:flex;flex-wrap:wrap;gap:7px;margin-top:2px}
+  .lc-step{flex:1;min-width:88px;text-align:center;font-family:var(--mono);font-size:11px;color:var(--text-faint);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:9px 6px;transition:.3s}
+  .lc-step.done{color:var(--green);border-color:rgba(93,201,138,.3)}
+  .lc-step b{display:block;color:var(--text);font-size:11.5px;margin-bottom:2px;font-weight:500}
+  .lc-step.done b{color:var(--green)}
+ 
+  /* ---------- Sections ---------- */
+  section{padding:52px 0;border-top:1px solid var(--line);scroll-margin-top:80px}
+  section:first-of-type{border-top:none}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .sec-num{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--gold);letter-spacing:.05em;flex:none;padding-top:6px}
+  h2{font-family:var(--disp);font-weight:700;font-size:clamp(26px,3.6vw,34px);line-height:1.1;letter-spacing:-0.025em;margin:0}
+  h3{font-family:var(--disp);font-weight:600;font-size:19px;letter-spacing:-0.015em;margin:38px 0 12px;color:var(--text)}
+  h4{font-family:var(--mono);font-weight:600;font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--gold);margin:28px 0 10px}
+  p{margin:0 0 16px;color:var(--text-dim)}
+  main strong{color:var(--text);font-weight:600}
+  main em{color:var(--gold-2);font-style:italic}
+  .sec-intro{font-size:17.5px;color:var(--text);line-height:1.62;margin-bottom:22px}
+  code{font-family:var(--mono);font-size:.86em;background:var(--surface);border:1px solid var(--line);border-radius:5px;padding:1.5px 6px;color:var(--cyan);white-space:nowrap}
+  main strong code,li code{white-space:normal}
+ 
+  /* lists */
+  ol.steps{list-style:none;counter-reset:st;padding:0;margin:22px 0}
+  ol.steps>li{counter-increment:st;position:relative;padding:0 0 20px 46px;margin:0}
+  ol.steps>li::before{content:counter(st);position:absolute;left:0;top:-2px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:600;color:var(--gold);background:var(--gold-soft);border:1px solid var(--gold-line);border-radius:8px}
+  ol.steps>li::after{content:"";position:absolute;left:14.5px;top:32px;bottom:2px;width:1px;background:var(--line)}
+  ol.steps>li:last-child::after{display:none}
+  ol.steps>li p{margin:0}
+  ol.steps>li p:first-child{color:var(--text);font-weight:500;margin-bottom:3px}
+  ul.plain{list-style:none;padding:0;margin:18px 0}
+  ul.plain>li{position:relative;padding:0 0 12px 22px;color:var(--text-dim)}
+  ul.plain>li::before{content:"";position:absolute;left:2px;top:11px;width:6px;height:6px;border-radius:1.5px;background:var(--gold);transform:rotate(45deg)}
+  ul.plain>li b{color:var(--text)}
+ 
+  /* code blocks */
+  .code{position:relative;margin:20px 0;border:1px solid var(--line);border-radius:12px;background:var(--ink);overflow:hidden}
+  .code-head{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .code-head .fname{font-family:var(--mono);font-size:11.5px;color:var(--text-faint);letter-spacing:.03em}
+  .copy-btn{font-family:var(--mono);font-size:11px;color:var(--text-dim);background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 9px;cursor:pointer;transition:.15s}
+  .copy-btn:hover{border-color:var(--gold-line);color:var(--gold)}
+  .copy-btn.done{color:var(--green);border-color:rgba(93,201,138,.35)}
+  pre{margin:0;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.7;color:var(--text-dim);scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+  pre::-webkit-scrollbar{height:9px}
+  pre::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:5px}
+  pre.ascii{font-size:11.5px;line-height:1.45;color:var(--text-faint);white-space:pre}
+  pre .kw{color:var(--gold-2)}
+  pre .cm{color:var(--text-faint);font-style:italic}
+  pre .st{color:var(--cyan)}
+  pre .fn{color:var(--green)}
+ 
+  /* tables */
+  .tbl-wrap{margin:20px 0;border:1px solid var(--line);border-radius:12px;overflow:hidden;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;text-align:left;color:var(--gold);font-weight:600;padding:12px 15px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+  td{padding:12px 15px;border-bottom:1px solid var(--line);color:var(--text-dim);vertical-align:top;line-height:1.5}
+  tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:rgba(255,255,255,.015)}
+  td code,th code{white-space:nowrap;font-size:12px}
+  td strong{color:var(--text)}
+  .center{text-align:center}
+ 
+  /* callouts */
+  .note{display:flex;gap:14px;margin:22px 0;padding:16px 18px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);border-left:3px solid var(--gold)}
+  .note.cyan{border-left-color:var(--cyan)}
+  .note.green{border-left-color:var(--green)}
+  .note .ico{flex:none;font-family:var(--mono);font-weight:600;color:var(--gold);font-size:13px;padding-top:1px}
+  .note.cyan .ico{color:var(--cyan)}.note.green .ico{color:var(--green)}
+  .note p{margin:0;font-size:14.5px;color:var(--text-dim)}
+  .note p b{color:var(--text)}
+ 
+  /* trust table verdicts */
+  .verdict{font-family:var(--mono);font-size:12px;font-weight:500}
+  .v-yes{color:var(--green)}.v-warn{color:var(--gold)}
+ 
+  /* footer */
+  footer{border-top:1px solid var(--line);margin-top:40px;padding:40px 0 20px;color:var(--text-faint);font-size:13px}
+  footer .frow{display:flex;flex-wrap:wrap;gap:20px 40px;justify-content:space-between;align-items:flex-end}
+  footer .fbrand{font-family:var(--disp);font-weight:700;font-size:17px;color:var(--text);display:flex;align-items:center;gap:10px}
+  footer .fmeta{font-family:var(--mono);font-size:11.5px;line-height:1.9}
+  footer a{color:var(--cyan)}
+  footer a:hover{color:var(--gold)}
+ 
+  /* reveal anim */
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .6s cubic-bezier(.2,.6,.2,1),transform .6s cubic-bezier(.2,.6,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+ 
+  :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+</style>
+</head>
+<body>
+ 
+<div class="topbar">
+  <a class="brand" href="#top">
+    <svg class="seal-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="#E7B24C"/><path d="M16 8l6 3.5v5c0 4-2.6 6.2-6 7.5-3.4-1.3-6-3.5-6-7.5v-5L16 8z" fill="#080B14"/><path d="M13.6 16.2l1.7 1.7 3.3-3.6" stroke="#E7B24C" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Sealed League <small>Docs</small>
+  </a>
+  <div class="topbar-spacer"></div>
+  <div class="pid" id="pidChip" title="Copy program ID">
+    <span class="lbl" style="color:var(--text-faint);font-size:10px;letter-spacing:.1em">DEVNET</span>
+    <b>AJdsHnwJ…AiqVku</b>
+    <span class="copyhint">copy</span>
+  </div>
+  <button class="menu-btn" id="menuBtn" aria-label="Toggle navigation">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+</div>
+ 
+<div class="scrim" id="scrim"></div>
+ 
+<div class="shell" id="top">
+  <aside class="sidebar" id="sidebar">
+    <p class="nav-eyebrow">Contents</p>
+    <nav class="nav" id="nav">
+      <a href="#problem"><span class="num">01</span> Problem &amp; approach</a>
+      <a href="#architecture"><span class="num">02</span> System architecture</a>
+      <a href="#lifecycle"><span class="num">03</span> Protocol lifecycle</a>
+      <a href="#program"><span class="num">04</span> On-chain program</a>
+      <a href="#backend"><span class="num">05</span> Backend</a>
+      <a href="#frontend"><span class="num">06</span> Frontend</a>
+      <a href="#deploy"><span class="num">07</span> Configuration &amp; deploy</a>
+      <a href="#trust"><span class="num">08</span> Trust model &amp; TxLINE</a>
+      <a href="#repo"><span class="num">09</span> Repository map</a>
+    </nav>
+  </aside>
+ 
+  <main>
+    <div class="wrap">
+ 
+      <!-- HERO -->
+      <header class="hero">
+        <span class="kicker"><span class="dot"></span> Verifiable forecasting · Solana</span>
+        <h1>A track record<br>nobody can <em>edit</em>.</h1>
+        <p class="lede">Sealed League is a protocol that makes an AI forecasting agent's record <strong>falsifiable</strong>. Every prediction is committed on-chain <strong>before</strong> the event, revealed against its hash, settled by Merkle proof, and staked with real capital — an immutable, per-agent performance ledger that not even the operator can rewrite.</p>
+        <div class="hero-meta">
+          <span class="chip"><span class="lbl">Program</span> <b>Anchor 0.31.1</b></span>
+          <span class="chip"><span class="lbl">Chain</span> <b>Solana devnet</b></span>
+        </div>
+ 
+        <!-- SIGNATURE: the seal -->
+        <div class="seal-panel" aria-hidden="true">
+          <div class="seal-head"><span class="lights"><i></i><i></i><i></i></span> commit_prediction · sealed before kickoff</div>
+          <div class="seal-body">
+            <div class="preimage">
+              <div class="pre-field"><div class="k">match_id_le</div><div class="v">0x0000000000000007</div></div>
+              <div class="pre-field"><div class="k">pick</div><div class="v">1 · draw</div></div>
+              <div class="pre-field"><div class="k">salt_32</div><div class="v" id="saltCell">a9f3…c701</div></div>
+              <div class="pre-field"><div class="k">agent_pubkey</div><div class="v">stat-sage · 7Bqk…9Xr</div></div>
+            </div>
+            <div class="seal-arrow"><span class="ln"></span> sha256 <span class="ln"></span></div>
+            <div class="hashline">
+              <svg class="lock" viewBox="0 0 32 32" fill="none"><rect x="7" y="14" width="18" height="13" rx="3" fill="#E7B24C" opacity="0.14" stroke="#E7B24C" stroke-width="1.4"/><path d="M11 14v-3a5 5 0 0 1 10 0v3" stroke="#E7B24C" stroke-width="1.6" fill="none" id="shackle"/><circle cx="16" cy="19.5" r="2.2" fill="#E7B24C"/><rect x="15" y="20.5" width="2" height="4" rx="1" fill="#E7B24C"/></svg>
+              <span class="hash-txt" id="hashTxt">computing commitment…</span>
+              <span class="stamp" id="stamp">SEALED</span>
+            </div>
+            <div class="lifecycle">
+              <div class="lc-step done"><b>Commit</b>hash + stake</div>
+              <div class="lc-step" id="lc-reveal"><b>Reveal</b>pick + salt</div>
+              <div class="lc-step" id="lc-settle"><b>Settle</b>Merkle proof</div>
+              <div class="lc-step" id="lc-claim"><b>Claim</b>parimutuel</div>
+            </div>
+          </div>
+        </div>
+      </header>
+ 
+      <!-- 01 PROBLEM -->
+      <section id="problem">
+        <div class="sec-head"><span class="sec-num">01</span><h2>Problem &amp; approach</h2></div>
+        <p class="sec-intro">Pundits and AI models claim forecasting accuracy; almost none of it is verifiable. Screenshots are cherry-picked, tweets get deleted, backtests are curve-fit. Sealed League makes an agent's track record <em>falsifiable</em>.</p>
+        <ol class="steps">
+          <li><p>The pick is <strong>hashed on-chain before kickoff</strong> — it cannot be produced after the fact.</p></li>
+          <li><p>The reveal is <strong>hash-checked by the program</strong> — it cannot be altered.</p></li>
+          <li><p>Settlement is <strong>bound to a Merkle proof</strong> — the grade cannot be assigned arbitrarily.</p></li>
+          <li><p>Every commitment <strong>locks a stake</strong> — being wrong, or silent, costs real capital.</p></li>
+        </ol>
+        <p>The result is a cryptographically auditable performance ledger per agent: a credit score for AI forecasters. Sports is the first vertical, but the protocol is event-agnostic.</p>
+      </section>
+ 
+      <!-- 02 ARCHITECTURE -->
+      <section id="architecture">
+        <div class="sec-head"><span class="sec-num">02</span><h2>System architecture</h2></div>
+        <p class="sec-intro">Three deployable units cooperate: an on-chain program that holds the rules and custody, an off-chain orchestrator that runs the league, and a leaderboard that lets anyone re-verify a receipt in their own browser.</p>
+        <div class="code">
+          <div class="code-head"><span class="fname">architecture.txt</span><button class="copy-btn" data-copy>copy</button></div>
+<pre class="ascii">┌──────────────── backend/ (Node 20+, TypeScript) ────────────────┐
+│                                                                 │
+│  feed.ts ─▶ index.ts (orchestrator) ─▶ agents.ts ─▶ Claude API  │
+│  (fixtures,   round loop:              4 LLM                     │
+│   odds,news)  create→commit→reveal     personas    + fallback   │
+│               →root→settle→claim         │                      │
+│                     │                    ▼                      │
+│                     ▼            chain.ts (adapter)             │
+│              state.ts            ├─ MemoryChain (local sim)     │
+│              (leaderboard)       └─ AnchorChain (devnet txs)    │
+│  express API :3000 ◀────┘                 │                    │
+└─────────────────────────┼─────────────────┼────────────────────┘
+          GET /api/state   │       signed txs │
+                           ▼                  ▼
+┌──── frontend/ (Vite + React 19) ────┐  ┌──── Solana devnet ────┐
+│ leaderboard · phase ticker          │  │ programs/sealed-league│
+│ per-prediction receipts             │  │ (Anchor 0.31)         │
+│ in-browser WebCrypto verifier       │  │ League·Agent·Match·   │
+│ wallet: back_agent / withdraw ──────┼─▶│ Prediction·Round·     │
+└─────────────────────────────────────┘  │ Vault·Pot PDAs        │
+                                          └───────────────────────┘</pre>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Unit</th><th>Role</th><th>Runtime</th></tr></thead>
+            <tbody>
+              <tr><td><code>programs/sealed-league</code></td><td><strong>Rules &amp; custody.</strong> Commit–reveal registry, Merkle settlement, parimutuel pots, backing vaults.</td><td>Solana · Anchor 0.31.1</td></tr>
+              <tr><td><code>backend/</code></td><td><strong>Orchestrator (keeper bot).</strong> LLM agent swarm, match feed, read-only JSON API.</td><td>Node ≥ 20 · Express</td></tr>
+              <tr><td><code>frontend/</code></td><td><strong>Leaderboard UI.</strong> Receipts, in-browser proof verification, backer wallet flow.</td><td>Vite · React 19</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+ 
+      <!-- 03 LIFECYCLE -->
+      <section id="lifecycle">
+        <div class="sec-head"><span class="sec-num">03</span><h2>Protocol lifecycle</h2></div>
+        <p class="sec-intro">One match moves through a fixed sequence of on-chain instructions. The commit window seals the pick before the event; everything after results are final is a permissionless crank.</p>
+        <div class="code">
+          <div class="code-head"><span class="fname">lifecycle.txt</span><button class="copy-btn" data-copy>copy</button></div>
+<pre class="ascii"> t0            t1 = commit_deadline    t2 = start_ts      results final
+ │  COMMIT      │      (≤ kickoff)      │  REVEAL   PLAY   │ ROOT→SETTLE→CLAIM
+ │  sha256 hash │  commits rejected     │  pick+salt       │ keeper posts
+ │  +stake lock │  after this instant   │  hash-checked    │ Merkle root;
+ ▼              ▼                        ▼                  ▼ anyone settles</pre>
+        </div>
+        <ol class="steps">
+          <li><p><code>commit_prediction</code></p><p>Before <code>commit_deadline</code>, the agent posts <code>sha256(match_id ‖ pick ‖ salt ‖ agent_pubkey)</code> and, atomically in the same transaction, locks a stake from its vault into the match pot. Binding the stake to the sealed pick means nobody can size a bet after seeing the result; binding the pubkey into the preimage prevents replaying another agent's hash.</p></li>
+          <li><p><code>reveal_prediction</code></p><p>Allowed only after <code>start_ts</code>. The program recomputes the hash from <code>(pick, salt)</code> and rejects mismatches (<code>CommitmentMismatch</code>). There is no code path that edits a prediction after commit — ever.</p></li>
+          <li><p><code>post_results_root</code></p><p>The keeper posts the round's results as a Merkle root (32 bytes for any number of matches). <em>This is the single trusted step in the demo build, deliberately isolated</em> — see §8.</p></li>
+          <li><p><code>settle_prediction</code> — <strong>permissionless</strong></p><p>Anyone holding a valid proof settles a prediction: the program hashes the result leaf, chains the proof to the round root, grades the pick, and updates the agent's immutable counters.</p></li>
+          <li><p><code>forfeit_unrevealed</code> — <strong>permissionless</strong></p><p>Once the root exists, any agent that committed but never revealed is graded incorrect and its stake stays in the pot. Without this, a silent agent could cherry-pick by omission and hold every honest winner's payout hostage.</p></li>
+          <li><p><code>claim_payout</code> — <strong>permissionless</strong></p><p>A parimutuel crank, once every commitment on the match is graded. Winners take stake plus a pro-rata share of losers' stakes back into their vault; losers' stakes stay slashed. If nobody won, revealed picks are refunded. The spent prediction account is closed, rent to the cranker.</p></li>
+          <li><p><code>close_match</code> / <code>close_round</code></p><p>Housekeeping: sweep pot dust and reclaim rent from spent PDAs so a long-running league doesn't bleed rent.</p></li>
+        </ol>
+      </section>
+ 
+      <!-- 04 PROGRAM -->
+      <section id="program">
+        <div class="sec-head"><span class="sec-num">04</span><h2>On-chain program reference</h2></div>
+        <p class="sec-intro">The entire protocol is ~860 commented lines of Anchor. Every account is a program-derived address, so any auditor can reconstruct and inspect the full state from seeds alone.</p>
+ 
+        <h3>4.1 &nbsp;Roles</h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Role</th><th>Who</th><th>Can call</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Authority</strong> (keeper)</td><td>League operator's wallet, fixed at <code>initialize</code></td><td><code>create_match</code>, <code>post_results_root</code>, commit/reveal as agent authority, <code>close_round</code>, <code>reconcile_vault</code></td></tr>
+              <tr><td><strong>Cranker</strong></td><td>Anyone</td><td><code>settle_prediction</code>, <code>forfeit_unrevealed</code>, <code>claim_payout</code>, <code>close_match</code></td></tr>
+              <tr><td><strong>Backer</strong></td><td>Any wallet</td><td><code>back_agent</code>, <code>withdraw_backing</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note"><span class="ico">◆</span><p><b>Design intent.</b> The keeper schedules the league, but every money-moving step after results are final is permissionless — if the operator's server dies, funds still flow.</p></div>
+ 
+        <h3>4.2 &nbsp;Accounts <span style="font-family:var(--mono);font-size:13px;font-weight:400;color:var(--text-faint)">(all PDAs)</span></h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Account</th><th>Seeds</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>League</code></td><td><code>["league"]</code></td><td>Singleton: authority pubkey, agent/match counters</td></tr>
+              <tr><td><code>Agent</code></td><td><code>["agent", name]</code></td><td>The verifiable record: <code>commits, reveals, settled, correct, total_backed</code> — monotonic, mutated only by protocol instructions</td></tr>
+              <tr><td><code>MatchAccount</code></td><td><code>["match", id]</code></td><td>Fixture, <code>start_ts</code>, <code>commit_deadline</code>, parimutuel bookkeeping</td></tr>
+              <tr><td><code>Prediction</code></td><td><code>["prediction", agent, id]</code></td><td>Commitment hash, timestamps, reveal, grade, stake, payout flag</td></tr>
+              <tr><td><code>Round</code></td><td><code>["round", id]</code></td><td>Results Merkle root + posted-at timestamp</td></tr>
+              <tr><td>pot</td><td><code>["pot", id]</code></td><td>Lamports staked on one match</td></tr>
+              <tr><td>vault</td><td><code>["vault", agent]</code></td><td>Agent's backing bankroll (backer capital)</td></tr>
+              <tr><td><code>VaultState</code></td><td><code>["vstate", agent]</code></td><td><code>total_shares</code>, <code>staked_outstanding</code> (lamports locked in live pots)</td></tr>
+              <tr><td><code>BackerPosition</code></td><td><code>["backer", agent, backer]</code></td><td>A backer's shares in one agent's vault</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note cyan"><span class="ico">▸</span><p>Seed derivation <b>doubles as authorization logic</b>: <code>settle_prediction</code> requires the <code>Round</code> PDA derived from the match's <code>round_id</code>, so a proof can only verify against the round the match actually belongs to; <code>forfeit_unrevealed</code> requires the round account to <em>exist</em>, which is on-chain evidence that results are final.</p></div>
+ 
+        <h3>4.3 &nbsp;Instruction summary</h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Instruction</th><th>Access</th><th>Core checks</th></tr></thead>
+            <tbody>
+              <tr><td><code>initialize</code></td><td>once</td><td>Creates League, fixes authority</td></tr>
+              <tr><td><code>register_agent</code></td><td>authority</td><td>Name ≤ 32 bytes; PDA per name ⇒ globally unique, derivable by any auditor</td></tr>
+              <tr><td><code>create_match</code></td><td>authority</td><td><code>commit_deadline ≤ start_ts</code> (<code>BadSchedule</code>)</td></tr>
+              <tr><td><code>commit_prediction</code></td><td>agent auth</td><td><code>now &lt; commit_deadline</code> · <code>stake &gt; 0</code> · vault liquidity; transfers stake vault → pot</td></tr>
+              <tr><td><code>reveal_prediction</code></td><td>agent auth</td><td><code>now ≥ start_ts</code> · not already revealed · recomputed hash == commitment</td></tr>
+              <tr><td><code>post_results_root</code></td><td>authority</td><td>Creates Round PDA (init ⇒ root is write-once)</td></tr>
+              <tr><td><code>settle_prediction</code></td><td class="center"><span class="verdict v-yes">anyone</span></td><td>Revealed · not settled · proof chains to root (<code>InvalidProof</code>)</td></tr>
+              <tr><td><code>forfeit_unrevealed</code></td><td class="center"><span class="verdict v-yes">anyone</span></td><td>Not revealed · not settled · round root exists</td></tr>
+              <tr><td><code>claim_payout</code></td><td class="center"><span class="verdict v-yes">anyone</span></td><td>Settled · not paid · <code>graded_count == commit_count</code>; pot → vault; closes Prediction</td></tr>
+              <tr><td><code>back_agent</code> / <code>withdraw_backing</code></td><td>any wallet</td><td>Share pricing at current equity; withdraw limited to liquid balance</td></tr>
+              <tr><td><code>reconcile_vault</code></td><td>authority</td><td>Bookkeeping repair after aborted rounds; <strong>moves no funds</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+ 
+        <h3>4.4 &nbsp;Cryptographic commitments</h3>
+        <div class="code">
+          <div class="code-head"><span class="fname">commitments</span><button class="copy-btn" data-copy>copy</button></div>
+<pre><span class="fn">commitment</span>   = sha256( match_id_le_u64 ‖ pick_u8 ‖ salt_32 ‖ agent_pubkey_32 )
+<span class="fn">result leaf</span>  = sha256( <span class="st">"result"</span> ‖ match_id_le_u64 ‖ result_u8 )
+<span class="fn">merkle parent</span>= sha256( min(a,b) ‖ max(a,b) )   <span class="cm">// sorted-pair; no index bits</span>
+<span class="fn">odd node</span>     = paired with itself</pre>
+        </div>
+        <p><code>pick</code> / <code>result</code> ∈ {0 = home, 1 = draw, 2 = away}. The 32-byte random salt makes the three-value pick space brute-force-proof. The backend Merkle implementation is <strong>byte-identical</strong> to the on-chain verifier, and the frontend re-implements verification with WebCrypto so any viewer can re-verify a receipt in their own browser without trusting the stack.</p>
+ 
+        <h3>4.5 &nbsp;Economic design</h3>
+        <h4>Stake sizing</h4>
+        <p><code>max(0.001 SOL, bankroll × (2% + 8% × confidence))</code> — bankroll-proportional, so hot streaks compound and cold streaks shrink exposure.</p>
+        <h4>Parimutuel pot</h4>
+        <p>Winners share the losers' stakes pro-rata to their own stake: <code>payout = stake + stake × losing_pool / winning_stake</code>. All integer math is done in <code>u128</code> before converting down, so overflow is impossible at lamport scale.</p>
+        <h4>Backing vaults are fund-style</h4>
+        <p>Deposits buy <em>shares</em> at current equity, where <code>equity = vault balance + staked_outstanding</code>. The first deposit prices one share at one lamport; later deposits buy in at prevailing value, so existing backers' P&amp;L is never diluted. Withdrawals burn shares rounded <strong>up</strong>, so the vault never overpays, and are limited to the liquid balance. Backer capital is the agent's ammunition: wins grow every backer's share value, slashes shrink it.</p>
+      </section>
+ 
+      <!-- 05 BACKEND -->
+      <section id="backend">
+        <div class="sec-head"><span class="sec-num">05</span><h2>Backend</h2></div>
+        <p class="sec-intro">A single long-lived Node process runs the league end to end: it generates fixtures, drives four LLM agents, orchestrates the on-chain round, and serves a read-only JSON API for the leaderboard.</p>
+ 
+        <h3>Orchestrator &nbsp;<code>index.ts</code></h3>
+        <p>An infinite round loop: generate fixtures → agents forecast → commit → wait for kickoff → reveal → play → build the Merkle tree, post root → settle each prediction with its proof → claim payouts → close spent PDAs. On devnet, commits are serialized to respect public-RPC rate limits; in memory mode they run in parallel. A failed round is abandoned and the league resumes 20 s later. Every round re-syncs vault equity from chain, so human deposits and withdrawals between rounds re-size stakes.</p>
+ 
+        <h3>Chain adapter &nbsp;<code>chain.ts</code></h3>
+        <p>One interface, two implementations. <code>MemoryChain</code> (default) is an honest local simulation enforcing the <em>same</em> rules as the program — commit deadlines, hash checks, proof verification, pot math — so the no-toolchain demo is a faithful dry-run, not a mock that always says yes. <code>AnchorChain</code> (<code>CHAIN=devnet</code>) signs real transactions via <code>@coral-xyz/anchor</code>. Flipping the env var changes nothing else in the app.</p>
+ 
+        <h3>Agents &nbsp;<code>agents.ts</code></h3>
+        <p>Four Claude personas (structured JSON: <code>pick, confidence, rationale</code>). All four receive identical match context — ratings, last-5 form, injuries, decimal odds, public lean, news wire — but each system prompt restricts which slice it may reason from.</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Agent</th><th>Strategy</th><th>Lens</th></tr></thead>
+            <tbody>
+              <tr><td>📊 <code>stat-sage</code></td><td>Stats-driven</td><td>Ratings, form, home edge; ignores news and odds</td></tr>
+              <tr><td>📉 <code>line-hunter</code></td><td>Odds-arbitrage</td><td>Own probability vs implied odds; picks the underpriced side</td></tr>
+              <tr><td>📰 <code>wire-sentinel</code></td><td>News-sentiment</td><td>Headlines weighted heavily; ratings a weak prior</td></tr>
+              <tr><td>😈 <code>devils-advocate</code></td><td>Contrarian</td><td>Fades the public lean unless the favourite's edge is overwhelming</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note green"><span class="ico">✓</span><p>If <code>ANTHROPIC_API_KEY</code> is unset or a call fails, each persona falls back to a <b>deterministic heuristic</b> implementing the same strategy — the demo never stalls.</p></div>
+ 
+        <h3>Feeds &amp; API</h3>
+        <p><code>FEED=sim</code> (default) uses seeded simulated fixtures, odds and news for fast rounds. <code>FEED=txline</code> pulls real World Cup fixtures, odds and results from TxLINE's signed devnet feed, settled with TxLINE Merkle proofs. The API exposes <code>GET /api/state</code> (JSON): mode, phase, round, per-agent stats, rolling receipts and an event log. CORS is <code>*</code> by default, lockable via <code>WEB_ORIGIN</code>. If a frontend build exists in <code>backend/public</code>, the same process serves the dashboard.</p>
+      </section>
+ 
+      <!-- 06 FRONTEND -->
+      <section id="frontend">
+        <div class="sec-head"><span class="sec-num">06</span><h2>Frontend</h2></div>
+        <p class="sec-intro">A Vite + React 19 leaderboard that polls <code>/api/state</code> — and, crucially, lets any visitor re-verify the cryptography themselves.</p>
+        <p>The dashboard shows a live phase ticker plus accuracy, record and bankroll per agent. Each prediction expands into a <strong>receipt</strong>: commitment, salt, reveal, leaf, proof path, root and transaction signatures, with Solana Explorer links on devnet. Every receipt can be re-verified in the browser via WebCrypto — recompute the commitment hash, recompute the leaf, chain the proof to the root. The wallet-adapter flow lets any visitor <code>back_agent</code> or <code>withdraw_backing</code> with their own wallet. <code>API_BASE</code> resolves same-origin when served from the API process, and <code>:3000</code> otherwise.</p>
+        <div class="note"><span class="ico">◆</span><p><b>Trust nothing, verify everything.</b> Because verification runs client-side, a skeptic never has to trust the operator's server — the proof either chains to the on-chain root or it doesn't.</p></div>
+      </section>
+ 
+      <!-- 07 DEPLOY -->
+      <section id="deploy">
+        <div class="sec-head"><span class="sec-num">07</span><h2>Configuration &amp; deployment</h2></div>
+ 
+        <h3>Environment &nbsp;<code>backend/.env</code></h3>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Variable</th><th>Default</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>ANTHROPIC_API_KEY</code></td><td>—</td><td>Enable LLM agents (else heuristics)</td></tr>
+              <tr><td><code>ORACLE_MODEL</code></td><td>—</td><td>Forecasting model</td></tr>
+              <tr><td><code>CHAIN</code></td><td><code>memory</code></td><td><code>memory</code> | <code>devnet</code></td></tr>
+              <tr><td><code>RPC_URL</code></td><td>devnet public</td><td>Solana RPC endpoint</td></tr>
+              <tr><td><code>KEYPAIR</code> / <code>TXLINE_WALLET_JSON</code></td><td>—</td><td>Keeper keypair (file path / inline JSON)</td></tr>
+              <tr><td><code>FEED</code></td><td><code>sim</code></td><td><code>sim</code> | <code>txline</code></td></tr>
+              <tr><td><code>COMMIT_WINDOW_S</code> / <code>PLAY_S</code> / <code>PAUSE_S</code></td><td>20 / 12 / 8</td><td>Demo pacing</td></tr>
+              <tr><td><code>MATCHES_PER_ROUND</code></td><td>3</td><td>Matches per round</td></tr>
+              <tr><td><code>PORT</code> / <code>WEB_PORT</code> / <code>WEB_ORIGIN</code></td><td>3000 / 8080 / <code>*</code></td><td>Ports &amp; CORS</td></tr>
+            </tbody>
+          </table>
+        </div>
+ 
+        <h3>Run modes</h3>
+        <ol class="steps">
+          <li><p>Local, no toolchain</p><p><code>cd backend &amp;&amp; npm run dev</code> + <code>cd frontend &amp;&amp; npm run dev</code>. Memory mode: full protocol semantics, no chain required.</p></li>
+          <li><p>Devnet</p><p>Build &amp; deploy with Anchor 0.31.1 in WSL (<code>anchor keys sync &amp;&amp; anchor build &amp;&amp; anchor deploy</code>), then <code>CHAIN=devnet npm run dev</code>. Receipts carry real transaction signatures.</p></li>
+          <li><p>Hosted</p><p>Build the frontend with <code>VITE_API_BASE=""</code> into <code>backend/public</code>; the Express process serves API + dashboard on one port. The keeper must hold its keypair and run 24/7 — it needs a persistent host, not a serverless platform.</p></li>
+        </ol>
+ 
+        <div class="note cyan"><span class="ico">$</span><p><b>Cost.</b> Devnet is free. A full LLM demo cycle costs ≈ $4 of LLM usage. A settled round costs only transaction fees — prediction/match/round rent is reclaimed by the cleanup instructions (~0.0009 SOL net per match).</p></div>
+      </section>
+ 
+      <!-- 08 TRUST -->
+      <section id="trust">
+        <div class="sec-head"><span class="sec-num">08</span><h2>Trust model &amp; TxLINE integration</h2></div>
+        <p class="sec-intro">The protocol reduces every claim to a single, deliberately isolated trust assumption — and that assumption is exactly the TxLINE integration point.</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Property</th><th>Guarantee</th></tr></thead>
+            <tbody>
+              <tr><td>Prediction timestamped before event</td><td><span class="verdict v-yes">✓</span> On-chain clock check at commit; unreachable after <code>commit_deadline</code></td></tr>
+              <tr><td>Prediction unforgeable / uneditable</td><td><span class="verdict v-yes">✓</span> Hash commitment; reveal recomputed on-chain; pubkey bound into preimage</td></tr>
+              <tr><td>Grading correct w.r.t. posted results</td><td><span class="verdict v-yes">✓</span> Merkle proof verified on-chain; round bound by PDA derivation</td></tr>
+              <tr><td>Cherry-picking by silence</td><td><span class="verdict v-yes">✓</span> Impossible: permissionless <code>forfeit_unrevealed</code> slashes no-shows</td></tr>
+              <tr><td>Funds recoverable if operator dies</td><td><span class="verdict v-yes">✓</span> Settle / forfeit / claim are permissionless cranks</td></tr>
+              <tr><td><strong>Results are true</strong></td><td><span class="verdict v-warn">◆</span> Trusted keeper in the demo build — the one deliberate assumption</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note"><span class="ico">◆</span><p>That last row is the integration point. <code>post_results_root</code> is isolated so that in production its body is replaced by a CPI into TxLINE's <code>validate_stat</code>, making the root <em>proven</em> by TxLINE's attestation instead of posted by the keeper. Nothing downstream — settlement, grading, ledger — changes. With <code>FEED=txline</code>, the backend already consumes TxLINE's signed feed and Merkle proofs today.</p></div>
+        <h3>8.1 &nbsp;TxLINE endpoints used</h3>
+        <p>All HTTP calls go to <code>TXLINE_HOST</code> (default <code>https://txline-dev.txodds.com</code>); the client implementation lives in <code>txline.ts</code>.</p>
+ 
+        <h4>Authentication flow <span style="font-family:var(--sans);font-size:13px;font-weight:400;color:var(--text-faint);text-transform:none;letter-spacing:0">— once, cached under <code>backend/.txline/</code></span></h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Step</th><th>Endpoint / instruction</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td class="center"><strong>1</strong></td><td><code>POST /auth/guest/start</code></td><td>Short-lived guest JWT</td></tr>
+              <tr><td class="center"><strong>2</strong></td><td>on-chain <code>subscribe(serviceLevel=1, weeks=4)</code> on TxLINE's devnet program</td><td>Free World Cup tier subscription (Token-2022 ATA, no TxL spent)</td></tr>
+              <tr><td class="center"><strong>3</strong></td><td><code>POST /api/token/activate</code></td><td>Body <code>{txSig, walletSignature, leagues}</code> where <code>walletSignature = ed25519-sign("txSig:leagues:jwt")</code> → long-lived API token</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note cyan"><span class="ico">▸</span><p>Subsequent data calls send both <code>Authorization: Bearer &lt;jwt&gt;</code> and <code>X-Api-Token: &lt;token&gt;</code>. A <b>401</b> triggers one JWT renewal and retry.</p></div>
+ 
+        <h4>Data endpoints <span style="font-family:var(--sans);font-size:13px;font-weight:400;color:var(--text-faint);text-transform:none;letter-spacing:0">— all <code>GET</code>, under <code>/api</code></span></h4>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Endpoint</th><th>Used for</th></tr></thead>
+            <tbody>
+              <tr><td><code>/fixtures/snapshot?competitionId=&amp;startEpochDay=</code></td><td>Upcoming World Cup fixtures (also the health probe for cached tokens)</td></tr>
+              <tr><td><code>/scores/schedule?epochDay=</code></td><td>Day's schedule / kickoff times</td></tr>
+              <tr><td><code>/odds/snapshot/{fixtureId}?asOf=</code></td><td>Market odds fed to the agents</td></tr>
+              <tr><td><code>/scores/snapshot/{fixtureId}?asOf=</code></td><td>Live / final score for settlement</td></tr>
+              <tr><td><code>/scores/historical/{fixtureId}</code></td><td>Completed-match score records</td></tr>
+              <tr><td><code>/scores/stat-validation?fixtureId=&amp;seq=&amp;statKeys=</code></td><td>Merkle proof package for a score record's stats</td></tr>
+            </tbody>
+          </table>
+        </div>
+ 
+        <h4>On-chain verification</h4>
+        <p>The proof package from <code>stat-validation</code> is verified by simulating TxLINE's <code>validate_stat_v2</code> instruction (Anchor <code>.view()</code>, IDL at <code>backend/idl/txoracle.json</code>) against their <code>daily_scores_roots</code> PDA for the fixture's epoch day. The backend <strong>refuses to settle</strong> on any result whose proof does not chain to the root TxLINE anchored on Solana — the same attestation path the production CPI integration would use inside <code>post_results_root</code>.</p>
+ 
+        <h4>Honest limitations (prototype)</h4>
+        <ul class="plain">
+          <li>Devnet SOL only — the SPL-USDC swap is mechanical.</li>
+          <li>Agents run under the keeper's key on devnet — permissionless agent onboarding is a protocol upgrade.</li>
+          <li>Results trust as above.</li>
+          <li>Payout routing from vaults to individual backers on settlement is the designed next step.</li>
+        </ul>
+      </section>
+ 
+      <!-- 09 REPO -->
+      <section id="repo">
+        <div class="sec-head"><span class="sec-num">09</span><h2>Repository map</h2></div>
+        <div class="code">
+          <div class="code-head"><span class="fname">tree</span><button class="copy-btn" data-copy>copy</button></div>
+<pre><span class="kw">programs/sealed-league/src/lib.rs</span>   <span class="cm">the entire protocol (~860 lines)</span>
+<span class="kw">backend/src/index.ts</span>               <span class="cm">orchestrator loop + Express API</span>
+<span class="kw">backend/src/chain.ts</span>               <span class="cm">Chain iface · MemoryChain · AnchorChain</span>
+<span class="kw">backend/src/agents.ts</span>              <span class="cm">4 LLM personas + fallbacks</span>
+<span class="kw">backend/src/merkle.ts</span>              <span class="cm">sha256 sorted-pair Merkle</span>
+<span class="kw">backend/src/feed.ts</span>                 <span class="cm">simulated fixtures/odds/news</span>
+<span class="kw">backend/src/txline-league.ts</span>        <span class="cm">real-data league on TxLINE feed</span>
+<span class="kw">backend/src/state.ts</span>               <span class="cm">in-memory API state</span>
+<span class="kw">frontend/src/</span>                      <span class="cm">React leaderboard + WebCrypto verifier</span>
+<span class="kw">target/idl/oracle_league.json</span>       <span class="cm">Anchor IDL (generated)</span></pre>
+        </div>
+      </section>
+ 
+      <footer>
+        <div class="frow">
+          <div>
+            <div class="fbrand">
+              <svg class="seal-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="#E7B24C"/><path d="M16 8l6 3.5v5c0 4-2.6 6.2-6 7.5-3.4-1.3-6-3.5-6-7.5v-5L16 8z" fill="#080B14"/><path d="M13.6 16.2l1.7 1.7 3.3-3.6" stroke="#E7B24C" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Sealed League
+            </div>
+            <p style="margin:12px 0 0;max-width:420px;color:var(--text-faint)">A verifiable track-record protocol for AI forecasting agents. Commit before the event, settle by proof, stake real capital.</p>
+          </div>
+          <div class="fmeta">
+            Program ID (devnet)<br>
+            <span style="color:var(--cyan)">AJdsHnwJ4WEz3zUFdpC7duedN9Ry2mQPB2gai8AiqVku</span><br><br>
+            Anchor 0.31.1 · Solana · React 19 · Node 20+
+          </div>
+        </div>
+      </footer>
+ 
+    </div>
+  </main>
+</div>
+ 
+<script>
+(function(){
+  "use strict";
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+ 
+  /* mobile nav */
+  var sidebar=document.getElementById('sidebar'), scrim=document.getElementById('scrim'), menuBtn=document.getElementById('menuBtn');
+  function closeNav(){sidebar.classList.remove('open');scrim.classList.remove('show');}
+  menuBtn.addEventListener('click',function(){sidebar.classList.toggle('open');scrim.classList.toggle('show');});
+  scrim.addEventListener('click',closeNav);
+  document.querySelectorAll('#nav a').forEach(function(a){a.addEventListener('click',closeNav);});
+ 
+  /* active section highlight */
+  var links=[].slice.call(document.querySelectorAll('#nav a'));
+  var map={};links.forEach(function(a){map[a.getAttribute('href').slice(1)]=a;});
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        links.forEach(function(l){l.classList.remove('active');});
+        var id=e.target.id; if(map[id]) map[id].classList.add('active');
+      }
+    });
+  },{rootMargin:'-45% 0px -50% 0px',threshold:0});
+  document.querySelectorAll('section').forEach(function(s){io.observe(s);});
+ 
+  /* reveal on scroll */
+  document.querySelectorAll('section').forEach(function(s){s.classList.add('reveal');});
+  if(reduce){document.querySelectorAll('.reveal').forEach(function(el){el.classList.add('in');});}
+  else{
+    var ro=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');ro.unobserve(e.target);}});
+    },{rootMargin:'0px 0px -12% 0px',threshold:0.05});
+    document.querySelectorAll('.reveal').forEach(function(el){ro.observe(el);});
+  }
+ 
+  /* copy buttons */
+  function copyText(text,btn){
+    var done=function(){var t=btn.textContent;btn.textContent='copied';btn.classList.add('done');setTimeout(function(){btn.textContent=t;btn.classList.remove('done');},1400);};
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(done).catch(function(){fallback(text);done();});}
+    else{fallback(text);done();}
+  }
+  function fallback(text){var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity=0;document.body.appendChild(ta);ta.select();try{document.execCommand('copy');}catch(e){}document.body.removeChild(ta);}
+  document.querySelectorAll('.copy-btn[data-copy]').forEach(function(btn){
+    btn.addEventListener('click',function(){var pre=btn.closest('.code').querySelector('pre');copyText(pre.innerText,btn);});
+  });
+  var pid=document.getElementById('pidChip');
+  if(pid){pid.addEventListener('click',function(){copyText('AJdsHnwJ4WEz3zUFdpC7duedN9Ry2mQPB2gai8AiqVku',{textContent:'',classList:{add:function(){},remove:function(){}}});var h=pid.querySelector('.copyhint');var o=h.textContent;h.textContent='copied!';h.style.color='var(--green)';setTimeout(function(){h.textContent=o;h.style.color='';},1400);});}
+ 
+  /* hero seal animation */
+  var hashTxt=document.getElementById('hashTxt'), stamp=document.getElementById('stamp'), shackle=document.getElementById('shackle');
+  var target='8f3c a91d 44e7 b0c2 6d5f e819 3a7b cd04 f26e 91a8 7c30 5b4d e0f1 92ac 3d6b 8e5f';
+  var hex='0123456789abcdef';
+  function randHash(){var s='';for(var i=0;i<64;i++){s+=hex[Math.floor(Math.random()*16)];if((i+1)%4===0&&i<63)s+=' ';}return s;}
+  var steps=['reveal','settle','claim'].map(function(id){return document.getElementById('lc-'+id);});
+  function runSeal(){
+    if(reduce){hashTxt.textContent=target;stamp.classList.add('on');return;}
+    var ticks=0,max=22;
+    var iv=setInterval(function(){
+      hashTxt.textContent=randHash();ticks++;
+      if(ticks>=max){
+        clearInterval(iv);hashTxt.textContent=target;
+        stamp.classList.add('on');
+        if(shackle){shackle.style.transition='transform .35s ease';shackle.style.transformOrigin='21px 11px';shackle.style.transform='rotate(0deg)';}
+        /* advance lifecycle */
+        steps.forEach(function(el,i){setTimeout(function(){if(el)el.classList.add('done');},700+i*650);});
+      }
+    },70);
+  }
+  /* start when hero visible (basically immediately) */
+  setTimeout(runSeal,450);
+})();
+</script>
+</body>
+</html>
